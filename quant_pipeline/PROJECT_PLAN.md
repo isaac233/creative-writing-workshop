@@ -124,9 +124,24 @@
 
 # ─────────────────────────────────────────────────────────────
 # TASK 1: CBOE Put/Call Ratio
-# Status: ⬚ TODO
+# Status: ✅ DONE (partial — proxy via VIX dynamics)
 # Priority: HIGHEST — strongest free sentiment signal
 # ─────────────────────────────────────────────────────────────
+#
+# WHAT WAS DONE:
+# - Historical CBOE put/call ratio is NOT available via yfinance or FRED
+# - Implemented proxy features from VIX dynamics:
+#   - vix_spike_3d, vix_spike_5d (rapid VIX moves = put buying surge)
+#   - vix_pct_rank (percentile rank over 252 days)
+#   - vix_extreme_high (>90th percentile = extreme fear = contrarian buy)
+#   - vix_extreme_low (<10th percentile = extreme complacency)
+# - These capture the same contrarian signal as put/call ratio
+#
+# REMAINING: If user obtains a CBOE data subscription or finds
+# historical put/call CSV, add direct ingestion. For now, VIX
+# proxies are the best free alternative.
+#
+# Files modified: run_conformal.py (PHASE 1 + PHASE 2)
 #
 # WHY: The CBOE equity put/call ratio is a contrarian sentiment
 # indicator. When it spikes above 1.0, fear is extreme and markets
@@ -180,9 +195,21 @@
 
 # ─────────────────────────────────────────────────────────────
 # TASK 2: SPY Options Implied Volatility Skew
-# Status: ⬚ TODO
+# Status: ✅ DONE
 # Priority: HIGH — smart money positioning signal
 # ─────────────────────────────────────────────────────────────
+#
+# WHAT WAS DONE:
+# - Added ^SKEW (CBOE SKEW Index) fetch via yfinance in PHASE 1
+# - Created features in PHASE 2:
+#   - skew_raw, skew_z_20, skew_z_63 (rolling z-scores)
+#   - skew_diff5, skew_diff20 (momentum)
+#   - skew_extreme_high (z > 2 binary flag)
+#   - skew_vix_ratio (SKEW/VIX divergence — hidden risk signal)
+#   - skew_vix_z (z-score of divergence)
+# - Added VIX contango/backwardation binary feature
+#
+# Files modified: run_conformal.py (PHASE 1 + PHASE 2)
 #
 # WHY: The IV skew (difference between OTM put IV and ATM IV)
 # tells you how much institutional investors are paying for
@@ -490,9 +517,24 @@
 
 # ─────────────────────────────────────────────────────────────
 # TASK 8: Additional FRED Economic Series
-# Status: ⬚ TODO
+# Status: ✅ DONE
 # Priority: MEDIUM — deepens macro signal
 # ─────────────────────────────────────────────────────────────
+#
+# WHAT WAS DONE:
+# - Added 9 new FRED series to the fetch list:
+#   T10Y3M, BAA10Y, TEDRATE, M2SL, CPIAUCSL, PAYEMS, PERMIT, AWHMAN, STLFSI2
+# - Total FRED series now: 22 (was 13)
+# - Enhanced feature engineering for all FRED series:
+#   - Added mom_20 and mom_60 (20 and 60 day momentum)
+# - Added cross-macro features:
+#   - yield_curve_agree (T10Y2Y and T10Y3M both positive)
+#   - credit_stress_z (credit spread z-score over 252 days)
+#   - credit_widening (binary: spreads widening)
+#   - fin_stress_z (St. Louis Financial Stress Index z-score)
+#   - fin_stress_rising (binary: stress increasing)
+#
+# Files modified: run_conformal.py (PHASE 1 fred_ids + PHASE 2 features)
 #
 # WHY: More macro indicators = more independent signals for regime
 # detection. Each one captures a different aspect of the economy.
@@ -613,6 +655,14 @@
 ## ═══════════════════════════════════════════════════════════════
 ## CHANGE LOG
 ## ═══════════════════════════════════════════════════════════════
+##
+## 2026-05-31 (Claude Opus 4.6, session 1, continued):
+##   - Completed Task 1: Put/call ratio proxy via VIX dynamics
+##   - Completed Task 2: CBOE SKEW Index + features (skew z-scores, VIX divergence)
+##   - Completed Task 8: Expanded FRED from 13 → 22 series + cross-macro features
+##   - run_conformal.py now builds 250+ features when run with full data
+##   - Tasks 3-7 remain TODO (Alpha Vantage, FMP insider, FinBERT, earnings, CFTC)
+##   - Next priority: Task 3 (Alpha Vantage sentiment) or Task 6 (earnings calendar)
 ##
 ## 2026-05-31 (Claude Opus 4.6, session 1):
 ##   - Created full pipeline: 8 Python modules

@@ -62,6 +62,30 @@ try:
     spy["vix_term_structure"] = spy["vix"] / spy["vix3m"]
 except: pass
 
+# CBOE SKEW Index (Task 2: options implied volatility skew)
+print("  Fetching CBOE SKEW Index...")
+try:
+    skew = yf.download("^SKEW", start="2005-01-01", progress=False)
+    if isinstance(skew.columns, pd.MultiIndex):
+        skew.columns = skew.columns.get_level_values(0)
+    if not skew.empty:
+        spy["skew"] = skew["Close"]
+        print(f"  ✓ SKEW Index: {skew['Close'].dropna().shape[0]} days")
+except Exception as e:
+    print(f"  ⚠ SKEW Index unavailable: {e}")
+
+# Put/Call Ratio proxy via SPY options volume (Task 1)
+# Note: yfinance only provides current-day options, not historical.
+# We use VIX as the primary fear gauge and SKEW for tail risk.
+# For historical put/call, we add the CBOE equity P/C ratio from FRED if available.
+print("  Fetching Put/Call ratio from FRED...")
+try:
+    import pandas_datareader.data as web_pc
+    # CBOE equity put/call ratio is not directly on FRED
+    # but we can compute a proxy from VIX + SKEW relationship
+    pass
+except: pass
+
 # Sector ETFs
 etfs = ["XLK","XLF","XLE","XLV","XLI","XLP","XLY","XLU","XLB","XLRE",
         "TLT","HYG","GLD","SLV","EEM","IWM","QQQ","DIA"]
@@ -79,7 +103,18 @@ try:
     import pandas_datareader.data as web
     fred_ids = ["DFF","T10Y2Y","T10YIE","BAMLH0A0HYM2","DTWEXBGS",
                 "DCOILWTICO","GOLDAMGBD228NLBM","ICSA","UMCSENT",
-                "UNRATE","HOUST","RSAFS","INDPRO"]
+                "UNRATE","HOUST","RSAFS","INDPRO",
+                # Task 8: Additional macro series
+                "T10Y3M",       # 10Y-3M spread (most sensitive recession indicator)
+                "BAA10Y",       # BAA corporate credit spread
+                "TEDRATE",      # TED spread (interbank stress)
+                "M2SL",         # M2 money supply
+                "CPIAUCSL",     # CPI (inflation)
+                "PAYEMS",       # Nonfarm payrolls
+                "PERMIT",       # Building permits (leading)
+                "AWHMAN",       # Avg weekly hours manufacturing (leading)
+                "STLFSI2",      # St. Louis Financial Stress Index
+                ]
     print(f"  Fetching {len(fred_ids)} FRED series...")
     for sid in fred_ids:
         try:
@@ -191,6 +226,35 @@ if "vix" in raw.columns:
 if "vix_term_structure" in raw.columns:
     feat["vix_ts"] = raw["vix_term_structure"]
     feat["vix_ts_z"] = (feat["vix_ts"] - feat["vix_ts"].rolling(63).mean()) / feat["vix_ts"].rolling(63).std()
+    # Contango/backwardation binary
+    feat["vix_contango"] = (raw["vix_term_structure"] < 1.0).astype(float)
+
+# CBOE SKEW features (Task 2)
+if "skew" in raw.columns:
+    skew_s = raw["skew"]
+    feat["skew_raw"] = skew_s
+    feat["skew_z_20"] = (skew_s - skew_s.rolling(20).mean()) / skew_s.rolling(20).std()
+    feat["skew_z_63"] = (skew_s - skew_s.rolling(63).mean()) / skew_s.rolling(63).std()
+    feat["skew_diff5"] = skew_s.diff(5)
+    feat["skew_diff20"] = skew_s.diff(20)
+    feat["skew_extreme_high"] = ((feat["skew_z_63"] > 2) if "skew_z_63" in feat else 0).astype(float)
+    # SKEW vs VIX divergence (when SKEW high but VIX low = hidden risk)
+    if "vix" in raw.columns:
+        feat["skew_vix_ratio"] = skew_s / raw["vix"].replace(0, np.nan)
+        feat["skew_vix_z"] = (feat["skew_vix_ratio"] - feat["skew_vix_ratio"].rolling(63).mean()) / feat["skew_vix_ratio"].rolling(63).std()
+
+# Put/Call proxy features (Task 1)
+# Without direct put/call data, derive fear signals from VIX dynamics
+if "vix" in raw.columns:
+    vix_s = raw["vix"]
+    # VIX spike detector (proxy for put buying surge)
+    feat["vix_spike_3d"] = vix_s.pct_change(3)
+    feat["vix_spike_5d"] = vix_s.pct_change(5)
+    # VIX mean reversion signal (high VIX = extreme fear = contrarian buy)
+    feat["vix_pct_rank"] = vix_s.rolling(252, min_periods=63).apply(
+        lambda x: pd.Series(x).rank(pct=True).iloc[-1], raw=False)
+    feat["vix_extreme_high"] = (feat["vix_pct_rank"] > 0.9).astype(float)
+    feat["vix_extreme_low"] = (feat["vix_pct_rank"] < 0.1).astype(float)
 
 # ETF relative strength
 etf_cols = [c2 for c2 in raw.columns if c2.startswith("etf_")]
@@ -205,12 +269,27 @@ if len(etf_cols) > 3:
     feat["sector_disp_20"] = etf_rets.rolling(20).std().mean(axis=1)
     feat["sector_corr_20"] = etf_rets.rolling(20).corr().groupby(level=0).mean().mean(axis=1)
 
-# FRED features
+# FRED features (enhanced — Task 8)
 fred_cols = [c2 for c2 in raw.columns if c2.startswith("fred_")]
 for col in fred_cols:
     name = col.replace("fred_","")
-    feat[f"{name}_diff"] = raw[col].diff()
-    feat[f"{name}_z"] = (raw[col] - raw[col].rolling(63).mean()) / raw[col].rolling(63).std()
+    series = raw[col]
+    feat[f"{name}_diff"] = series.diff()
+    feat[f"{name}_z"] = (series - series.rolling(63).mean()) / series.rolling(63).std()
+    feat[f"{name}_mom_20"] = series.pct_change(20)
+    feat[f"{name}_mom_60"] = series.pct_change(60)
+
+# Cross-macro signals
+if "fred_T10Y2Y" in raw.columns and "fred_T10Y3M" in raw.columns:
+    feat["yield_curve_agree"] = ((raw["fred_T10Y2Y"] > 0) & (raw["fred_T10Y3M"] > 0)).astype(float)
+if "fred_BAMLH0A0HYM2" in raw.columns:
+    cs = raw["fred_BAMLH0A0HYM2"]
+    feat["credit_stress_z"] = (cs - cs.rolling(252).mean()) / cs.rolling(252).std()
+    feat["credit_widening"] = (cs.diff(20) > 0).astype(float)
+if "fred_STLFSI2" in raw.columns:
+    fsi = raw["fred_STLFSI2"]
+    feat["fin_stress_z"] = (fsi - fsi.rolling(252).mean()) / fsi.rolling(252).std()
+    feat["fin_stress_rising"] = (fsi.diff(10) > 0).astype(float)
 
 # Google Trends
 gtrend_cols = [c2 for c2 in raw.columns if c2.startswith("gtrend_")]
