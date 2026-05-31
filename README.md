@@ -1,85 +1,37 @@
-# Creative Writing Workshop v2.0
+# Project Workspace
 
-A standalone AI writing assistant with semantic search, grammar checking, and readability analysis. Browser-based. No configuration.
+Two projects in this repository. Both standalone, no shared dependencies.
 
-## Quick Start
+## 1. Creative Writing Workshop (`creative_workshop.py`)
 
-```bash
-python3 creative_workshop.py
-```
+Standalone AI writing assistant with browser UI. Run `python3 creative_workshop.py` — it handles Ollama, model downloads, and opens a web interface automatically.
 
-The app automatically installs packages, finds and starts Ollama, pulls all models, and opens a web UI.
+**Models:** Mistral Small 3.2 (24B creative), Qwen 3.5:4b (structural), nomic-embed-text (semantic search)
 
-**Only prerequisite: [Ollama](https://ollama.com)** — install it once.
+**Tools:** spaCy NER, LanguageTool proofreading, textstat readability, embedding-based context loading
 
-## Models (auto-downloaded on first run)
+See the [creative workshop docs](creative_workshop.py) header for full details.
 
-| Model | Size | Role |
-|---|---|---|
-| **mistral-small3.2** (24B) | ~14 GB | Creative writing — scenes, dialogue, worldbuilding |
-| **qwen3.5:4b** | ~2.5 GB | Structural tasks — analysis, consistency, filing |
-| **nomic-embed-text** | ~270 MB | Semantic search over world bible files |
+## 2. Quant Pipeline (`quant_pipeline/`)
 
-Ollama swaps models in/out of VRAM automatically. Only one large model loaded at a time.
+XGBoost trading system for SPY with triple barrier labeling, meta-labeling, and purged walk-forward CV.
 
-## Tools
+**Current status:** 73.6% precision on real S&P 500 holdout data. See [`quant_pipeline/STATUS.md`](quant_pipeline/STATUS.md) for full results and roadmap to 97%.
 
-### Create
-- **Write** — free-form creative requests, world bible context auto-loaded via semantic search
-- **Dialogue** — scene builder, character files found automatically
-- **Worldbuild** — create lore entries, filed into world bible with duplicate detection
-- **Feedback** — editorial critique on your writing
-- **Next Steps** — story direction suggestions
+**To run:** `cd quant_pipeline && python run_local.py`
 
-### World Bible
-- **Browse** — view, edit, create, delete files
-- **Search** — grep across all files
+## Session Notes (May 30, 2026)
 
-### Analyze
-- **Manuscript** — structural analysis + readability metrics (Flesch-Kincaid, Gunning Fog, word count, reading time)
-- **Cross-Reference** — extract entities from a manuscript via spaCy NER, check against world bible for contradictions
-- **Consistency** — scan world bible for internal conflicts
-- **Proofread** — grammar/style checking via LanguageTool (rule-based, catches what LLMs miss)
+### What was built today:
+1. Creative Writing Workshop v2.0 — complete rewrite with Mistral 24B, embedding search, 4 new analysis tools, standalone launcher
+2. Quant pipeline — 8-module system built from improved Gemini spec, tested on real S&P 500 data
+3. Both pushed to this repo
 
-## How Memory Works
+### Quant pipeline next steps (continue from home):
+- Run `python run_local.py` to fetch full dataset (SPY + 16 ETFs + VIX + FRED) via yfinance
+- Re-run ensemble with full feature set (currently only OHLCV, need cross-asset + macro)
+- Add alternative data (options flow, sentiment) for the push to 97%
+- See `quant_pipeline/STATUS.md` for detailed roadmap
 
-World bible files ARE the long-term memory. On startup, every file is indexed two ways:
-
-1. **Keyword index** — instant Python lookup for exact term matching
-2. **Embedding index** — semantic search via nomic-embed-text for conceptual matching
-
-You type "write a scene where the disgraced captain negotiates" and it finds `sera_voss.md` even though "disgraced captain" doesn't appear in the filename — the embedding captures the meaning.
-
-## Backend Toggle
-
-Bottom of the sidebar:
-- **Local (Free)** — Mistral Small 3.2 via Ollama. Zero cost, unlimited.
-- **Claude API** — Anthropic's Claude. Best quality, pay-per-token.
-
-Set your key to enable Claude: `export ANTHROPIC_API_KEY=sk-ant-...`
-
-## Optional Tools (auto-installed on first use)
-
-| Tool | What it does | Requirement |
-|---|---|---|
-| **spaCy** | Named entity extraction for cross-referencing | Auto-installed |
-| **LanguageTool** | Grammar/style checking (2000+ rules) | Requires Java |
-| **textstat** | Readability metrics | Auto-installed |
-
-## File Structure
-
-```
-creative_workshop.py       # the app
-world_bible/               # your lore (auto-created, preserved)
-  characters/  locations/  history/  magic_systems/
-  cultures/  languages/  plot_outlines/  notes/
-manuscripts/               # your writing
-output/                    # saved outputs
-```
-
-## Requirements
-
-- Python 3.10+
-- Ollama (https://ollama.com)
-- 16 GB VRAM recommended (runs on 8 GB with smaller models)
-- Java (optional, for LanguageTool proofreading)
+### Important:
+**Revoke all GitHub tokens** shared during this conversation. Go to GitHub → Settings → Developer settings → Personal access tokens and delete them immediately.
