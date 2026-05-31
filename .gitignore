@@ -30,3 +30,4 @@ Thumbs.db
 
 # Quant pipeline data
 quant_pipeline/data/
+__pycache__/
