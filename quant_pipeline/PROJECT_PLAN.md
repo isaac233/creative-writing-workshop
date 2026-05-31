@@ -78,13 +78,19 @@
 ## ═══════════════════════════════════════════════════════════════
 ##
 ## Date: 2026-05-31
-## Data: Real S&P 500 OHLCV 2010-2018 (2259 days, 34 features)
-## Best holdout precision: 73.6% (ensemble + regime filter)
-## Conformal result: 40% precision (insufficient features for
-##   conformal sets to narrow to singletons)
-## Bottleneck: Not enough independent signal sources.
-##   Price/volume alone cannot drive conformal sets to singleton
-##   at 97% coverage. Need cross-asset, macro, sentiment, options data.
+## Data: Real S&P 500 OHLCV 2010-2018 (limited — no VIX/ETFs/FRED from cloud)
+## Best holdout precision: 73.6% (ensemble + regime filter, 34 features)
+## Conformal result: 40% precision (insufficient features for singletons)
+##
+## ESTIMATED with full data on user's machine:
+##   - Features: 250+ (vs 34 in cloud environment)
+##   - Sources: SPY + VIX + SKEW + 18 ETFs + 22 FRED series + Google Trends
+##   - New features added: SKEW z-scores, VIX fear proxy, expanded FRED,
+##     cross-macro signals, earnings density
+##   - Conformal singleton rate should increase significantly
+##
+## NEXT STEP: User runs `python run_conformal.py` on their machine
+## and reports the conformal_results.json output.
 ##
 ## ═══════════════════════════════════════════════════════════════
 
@@ -430,9 +436,20 @@
 
 # ─────────────────────────────────────────────────────────────
 # TASK 6: Earnings Calendar Density
-# Status: ⬚ TODO
+# Status: ✅ DONE
 # Priority: MEDIUM — captures volatility event timing
 # ─────────────────────────────────────────────────────────────
+#
+# WHAT WAS DONE:
+# - Per-stock earnings dates from yfinance are unreliable historically
+# - Implemented quarterly earnings season proxy:
+#   - Peak density (1.0): weeks 2-5 of Jan/Apr/Jul/Oct
+#   - Shoulder density (0.5): week 1 of earnings months
+#   - Pre-season (0.3): last week before earnings month
+# - Features: earnings_density (continuous), earnings_season (binary)
+# - This helps the model know when to abstain (high earnings = volatile)
+#
+# Files modified: run_conformal.py (PHASE 1 + PHASE 2)
 #
 # WHY: Volatility increases around earnings season. The number
 # of major SPY-constituent earnings reports in the next 5-10 days
@@ -655,6 +672,15 @@
 ## ═══════════════════════════════════════════════════════════════
 ## CHANGE LOG
 ## ═══════════════════════════════════════════════════════════════
+##
+## 2026-05-31 (Claude Opus 4.6, session 1, final):
+##   - Completed Task 6: Earnings calendar density feature
+##   - 5 of 10 tasks complete (0, 1, 2, 6, 8)
+##   - Remaining: 3 (Alpha Vantage), 4 (FMP insider), 5 (FinBERT),
+##     7 (CFTC COT), 9 (integration test), 10 (backtest)
+##   - Tasks 3, 4, 5 require API keys or heavy dependencies
+##   - Task 9 should be run on user's machine after pulling latest code
+##   - Pipeline ready to test: cd quant_pipeline && python run_conformal.py
 ##
 ## 2026-05-31 (Claude Opus 4.6, session 1, continued):
 ##   - Completed Task 1: Put/call ratio proxy via VIX dynamics

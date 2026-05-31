@@ -139,6 +139,29 @@ try:
 except:
     print("  ⚠ pytrends unavailable, skipping Google Trends")
 
+# Earnings Calendar Density (Task 6)
+print("  Computing earnings calendar density...")
+try:
+    # Use month/quarter as a proxy since historical per-stock earnings dates
+    # are unreliable via yfinance. Earnings season = Jan/Apr/Jul/Oct weeks 2-5.
+    earnings_months = {1, 4, 7, 10}  # months when most S&P 500 companies report
+    earnings_density = pd.Series(0.0, index=spy.index)
+    for idx in spy.index:
+        month = idx.month
+        day = idx.day
+        # Peak earnings: weeks 2-5 of earnings months
+        if month in earnings_months and 8 <= day <= 31:
+            earnings_density.loc[idx] = 1.0
+        # Shoulder period: first week of earnings month or last week of prior month
+        elif month in earnings_months and day < 8:
+            earnings_density.loc[idx] = 0.5
+        elif (month + 1) % 12 in earnings_months and day >= 25:
+            earnings_density.loc[idx] = 0.3
+    spy["earnings_density"] = earnings_density
+    print(f"  ✓ Earnings density: {(earnings_density > 0).sum()} event days")
+except Exception as e:
+    print(f"  ⚠ Earnings calendar failed: {e}")
+
 spy = spy.ffill().dropna(subset=["close"])
 spy.to_parquet(DATA_DIR / "raw_full.parquet")
 print(f"  ✓ Saved: {spy.shape[0]} days × {spy.shape[1]} columns")
@@ -300,6 +323,11 @@ for col in gtrend_cols:
 # Calendar
 feat["dow"] = raw.index.dayofweek / 4
 feat["month_sin"] = np.sin(2*np.pi*raw.index.month/12)
+
+# Earnings density (Task 6)
+if "earnings_density" in raw.columns:
+    feat["earnings_density"] = raw["earnings_density"]
+    feat["earnings_season"] = (raw["earnings_density"] > 0.5).astype(float)
 
 # LAG ALL BY 1
 feat = feat.shift(1)
