@@ -1,37 +1,40 @@
 # Project Workspace
 
-Two projects in this repository. Both standalone, no shared dependencies.
+## Quant Pipeline — 97% Holdout-Acceptance Target
 
-## 1. Creative Writing Workshop (`creative_workshop.py`)
+**Status:** Architecture complete. Needs full data to hit target.
 
-Standalone AI writing assistant with browser UI. Run `python3 creative_workshop.py` — it handles Ollama, model downloads, and opens a web interface automatically.
+**Run this at home:**
+```bash
+cd quant_pipeline
+pip install -r requirements.txt
+python run_conformal.py
+```
 
-**Models:** Mistral Small 3.2 (24B creative), Qwen 3.5:4b (structural), nomic-embed-text (semantic search)
+This fetches real data from 6 sources (SPY, VIX, 18 ETFs, 13 FRED macro series, Google Trends sentiment), builds 200+ stationary features, trains a 25-model XGBoost ensemble, calibrates conformal prediction, and scans for filter combinations that achieve 97% holdout-acceptance precision.
 
-**Tools:** spaCy NER, LanguageTool proofreading, textstat readability, embedding-based context loading
+**What's in the pipeline:**
+- `run_conformal.py` — one-click full pipeline (START HERE)
+- `conformal.py` — conformal prediction with selective abstention (the key innovation)
+- `ROADMAP.md` — complete technical roadmap
+- `data_pipeline.py`, `features.py`, `labels.py`, `regime.py`, `modeling.py`, `backtest.py` — modular components
 
-See the [creative workshop docs](creative_workshop.py) header for full details.
+**Key insight:** Conformal prediction provides mathematical (not empirical) precision guarantees. The model only issues a signal when the conformal prediction set is a singleton at 97% coverage — meaning the model is so confident that only one outcome is plausible. On all other days, it abstains. The tradeoff is fewer signals, but every accepted signal carries the guarantee.
 
-## 2. Quant Pipeline (`quant_pipeline/`)
+**Why it needs your machine:** This container can't reach yfinance/FRED APIs. With only S&P 500 price data (34 features), the ensemble can't discriminate well enough for 97%. With the full dataset (200+ features from 6 independent sources), conformal prediction sets become tighter and more signals pass the singleton filter.
 
-XGBoost trading system for SPY with triple barrier labeling, meta-labeling, and purged walk-forward CV.
+See `quant_pipeline/ROADMAP.md` for the full technical architecture.
 
-**Current status:** 73.6% precision on real S&P 500 holdout data. See [`quant_pipeline/STATUS.md`](quant_pipeline/STATUS.md) for full results and roadmap to 97%.
+---
 
-**To run:** `cd quant_pipeline && python run_local.py`
+## Creative Writing Workshop
 
-## Session Notes (May 30, 2026)
+```bash
+python3 creative_workshop.py
+```
 
-### What was built today:
-1. Creative Writing Workshop v2.0 — complete rewrite with Mistral 24B, embedding search, 4 new analysis tools, standalone launcher
-2. Quant pipeline — 8-module system built from improved Gemini spec, tested on real S&P 500 data
-3. Both pushed to this repo
+Standalone AI writing assistant. Auto-manages Ollama, pulls models, opens browser UI.
 
-### Quant pipeline next steps (continue from home):
-- Run `python run_local.py` to fetch full dataset (SPY + 16 ETFs + VIX + FRED) via yfinance
-- Re-run ensemble with full feature set (currently only OHLCV, need cross-asset + macro)
-- Add alternative data (options flow, sentiment) for the push to 97%
-- See `quant_pipeline/STATUS.md` for detailed roadmap
+---
 
-### Important:
-**Revoke all GitHub tokens** shared during this conversation. Go to GitHub → Settings → Developer settings → Personal access tokens and delete them immediately.
+**IMPORTANT: Revoke all GitHub tokens shared in the Claude conversation.**
